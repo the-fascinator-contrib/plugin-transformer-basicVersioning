@@ -9,6 +9,8 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import java.io.FileWriter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,8 +21,10 @@ import com.googlecode.fascinator.api.storage.Payload;
 import com.googlecode.fascinator.api.storage.StorageException;
 import com.googlecode.fascinator.api.transformer.Transformer;
 import com.googlecode.fascinator.api.transformer.TransformerException;
+import com.googlecode.fascinator.common.JsonObject;
 import com.googlecode.fascinator.common.JsonSimple;
 import com.googlecode.fascinator.common.JsonSimpleConfig;
+import com.googlecode.fascinator.storage.filesystem.FileSystemDigitalObject;
 
 /**
  * <p>
@@ -72,6 +76,7 @@ import com.googlecode.fascinator.common.JsonSimpleConfig;
  * </ol>
  * 
  * @author Duncan Dickinson
+ * @author li
  */
 public class BasicVersioningTransformer implements Transformer {
 	
@@ -113,7 +118,6 @@ public class BasicVersioningTransformer implements Transformer {
 
         // Source payload - local setting
         String source = itemConfig.getString(systemPayload, "sourcePayload");
-        
         Payload sourcePayload = null;
         try {
             // Sometimes config will be just an extension eg. ".tfpackage"
@@ -122,7 +126,8 @@ public class BasicVersioningTransformer implements Transformer {
                     source = payloadId;
                 }
             }
-            log.info("Transforming PID '{}' from OID '{}'", source, in.getId());
+            log.info("Versioning - Transforming PID '{}' from OID '{}'", source, in.getId());
+            log.info(((FileSystemDigitalObject)in).getPath());
             sourcePayload = in.getPayload(source);
         } catch (StorageException ex) {
             log.error("Error accessing payload in storage: '{}'", ex);
@@ -133,23 +138,27 @@ public class BasicVersioningTransformer implements Transformer {
             try {
                 in.createStoredPayload(payloadName, sourcePayload.open());
                 sourcePayload.close();
+                createVersionIndex(((FileSystemDigitalObject)in).getPath());
                 return in;
             } catch (StorageException ex) {
                 in.updatePayload(payloadName, sourcePayload.open());
                 sourcePayload.close();
+                createVersionIndex(((FileSystemDigitalObject)in).getPath());
                 return in;
             }
         } catch (StorageException ex) {
             throw new TransformerException("Error storing payload: ", ex);
         }
+
 	}
 	
 	
 
     private String payloadName() {
 		// Use a timestamp for the filename
-		DateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
-		return "version_" + dateFormat.format(new Date());
+		//DateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+		//return "version_" + dateFormat.format(new Date());
+		return "version_" + getTimestamp();
     }
 	
 	/*
@@ -222,4 +231,37 @@ public class BasicVersioningTransformer implements Transformer {
 		// No tidy up needed
 	}
 
+    private String getTimestamp() {
+		DateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+		return dateFormat.format(new Date());
+    }
+
+    private void createVersionIndex(String rootPath) {
+        String jsonPath = rootPath + "/" + "Version_Index.json";
+        log.debug("Indexing a version into: " + jsonPath);
+        JsonSimple js = null;
+		try {
+			File oldf = new File(jsonPath);
+	        if (oldf.exists()) {
+	            log.debug("Updating a version index file: " + jsonPath);
+	        	js = new JsonSimple(oldf);
+	        } else {
+	        	log.debug("Need to create a new version index file: " + jsonPath);
+	        	js = new JsonSimple();
+	        }
+	    	JsonObject jObj = js.getJsonObject();
+	    	jObj.put(getTimestamp(), payloadName());
+	     
+	        try {
+		        FileWriter fw = new FileWriter(jsonPath);
+	    		fw.write(jObj.toJSONString());
+	    		fw.flush();
+	    		fw.close();
+	        } catch (IOException e) {
+	        	log.error("Failed to save versioning property file.", e);
+	        }
+		} catch (IOException eOuter) {
+			log.error("Failed to edit versioning property file.", eOuter);
+		}
+    }
 }

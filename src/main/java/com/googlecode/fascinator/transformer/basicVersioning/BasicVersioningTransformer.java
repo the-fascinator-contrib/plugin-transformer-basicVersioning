@@ -1,5 +1,20 @@
-/**
+/* 
+ * Fascinator - Plugin - Tranformer - Basic Versioning
+ * Copyright (C) 2013 Queensland Cyber Infrastructure Foundation (http://www.qcif.edu.au/)
  * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 package com.googlecode.fascinator.transformer.basicVersioning;
 
@@ -21,6 +36,7 @@ import com.googlecode.fascinator.api.storage.Payload;
 import com.googlecode.fascinator.api.storage.StorageException;
 import com.googlecode.fascinator.api.transformer.Transformer;
 import com.googlecode.fascinator.api.transformer.TransformerException;
+import org.json.simple.JSONArray;
 import com.googlecode.fascinator.common.JsonObject;
 import com.googlecode.fascinator.common.JsonSimple;
 import com.googlecode.fascinator.common.JsonSimpleConfig;
@@ -76,7 +92,7 @@ import com.googlecode.fascinator.storage.filesystem.FileSystemDigitalObject;
  * </ol>
  * 
  * @author Duncan Dickinson
- * @author li
+ * @author Jianfeng Li
  */
 public class BasicVersioningTransformer implements Transformer {
 	
@@ -239,29 +255,36 @@ public class BasicVersioningTransformer implements Transformer {
     private void createVersionIndex(String rootPath) {
         String jsonPath = rootPath + "/" + "Version_Index.json";
         log.debug("Indexing a version into: " + jsonPath);
-        JsonSimple js = null;
+
+        JSONArray jArr = null;
 		try {
 			File oldf = new File(jsonPath);
 	        if (oldf.exists()) {
-	            log.debug("Updating a version index file: " + jsonPath);
-	        	js = new JsonSimple(oldf);
+	            log.debug("Need to update a version index file: " + jsonPath);
+	            JsonSimple js = new JsonSimple(oldf);
+	        	jArr = js.getJsonArray();
 	        } else {
 	        	log.debug("Need to create a new version index file: " + jsonPath);
-	        	js = new JsonSimple();
+	        	jArr = new JSONArray();
 	        }
-	    	JsonObject jObj = js.getJsonObject();
-	    	jObj.put(getTimestamp(), payloadName());
-	     
-	        try {
-		        FileWriter fw = new FileWriter(jsonPath);
-	    		fw.write(jObj.toJSONString());
-	    		fw.flush();
-	    		fw.close();
-	        } catch (IOException e) {
-	        	log.error("Failed to save versioning property file.", e);
-	        }
-		} catch (IOException eOuter) {
-			log.error("Failed to edit versioning property file.", eOuter);
+	    	JsonObject newVer = new JsonObject();
+	    	newVer.put("timestamp", getTimestamp() );
+	    	newVer.put("file_name", payloadName() );
+	    	try {
+		    	jArr.add(newVer);
+		        try {
+			        FileWriter fw = new FileWriter(jsonPath);
+		    		fw.write(jArr.toJSONString());
+		    		fw.flush();
+		    		fw.close();
+		        } catch (IOException e) {
+		        	log.error("Failed to save versioning property file.", e);
+		        }
+	    	} catch (Exception eStrange) {
+	    		log.error("Failed to add a new version.", eStrange);
+	    	}
+		} catch (Exception eOther) {
+			log.error("Failed to create/edit versioning property file.", eOther);
 		}
     }
 }

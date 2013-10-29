@@ -1,1 +1,2 @@
 com.googlecode.fascinator.transformer.basicVersioning.BasicVersioningTransformer
+com.googlecode.fascinator.transformer.basicVersioning.ExtensionBasicVersioningTransformer

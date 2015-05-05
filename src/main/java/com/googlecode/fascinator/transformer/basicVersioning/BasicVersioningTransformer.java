@@ -18,13 +18,14 @@
  */
 package com.googlecode.fascinator.transformer.basicVersioning;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-
 import java.io.FileWriter;
+import java.nio.charset.StandardCharsets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,11 +37,13 @@ import com.googlecode.fascinator.api.storage.Payload;
 import com.googlecode.fascinator.api.storage.StorageException;
 import com.googlecode.fascinator.api.transformer.Transformer;
 import com.googlecode.fascinator.api.transformer.TransformerException;
+
 import org.json.simple.JSONArray;
+
 import com.googlecode.fascinator.common.JsonObject;
 import com.googlecode.fascinator.common.JsonSimple;
 import com.googlecode.fascinator.common.JsonSimpleConfig;
-import com.googlecode.fascinator.storage.filesystem.FileSystemDigitalObject;
+import com.googlecode.fascinator.common.storage.StorageUtils;
 
 /**
  * <p>
@@ -143,7 +146,7 @@ public class BasicVersioningTransformer implements Transformer {
                 }
             }
             log.info("Versioning - Transforming PID '{}' from OID '{}'", source, in.getId());
-            log.info(((FileSystemDigitalObject)in).getPath());
+            
             sourcePayload = in.getPayload(source);
         } catch (StorageException ex) {
             log.error("Error accessing payload in storage: '{}'", ex);
@@ -154,12 +157,12 @@ public class BasicVersioningTransformer implements Transformer {
             try {
                 in.createStoredPayload(payloadName, sourcePayload.open());
                 sourcePayload.close();
-                createVersionIndex(((FileSystemDigitalObject)in).getPath());
+                createVersionIndex(in);
                 return in;
             } catch (StorageException ex) {
                 in.updatePayload(payloadName, sourcePayload.open());
                 sourcePayload.close();
-                createVersionIndex(((FileSystemDigitalObject)in).getPath());
+                createVersionIndex(in);
                 return in;
             }
         } catch (StorageException ex) {
@@ -251,40 +254,28 @@ public class BasicVersioningTransformer implements Transformer {
 		DateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
 		return dateFormat.format(new Date());
     }
-
-    private void createVersionIndex(String rootPath) {
-        String jsonPath = rootPath + "/" + "Version_Index.json";
-        log.debug("Indexing a version into: " + jsonPath);
-
-        JSONArray jArr = null;
-		try {
-			File oldf = new File(jsonPath);
-	        if (oldf.exists()) {
-	            log.debug("Need to update a version index file: " + jsonPath);
-	            JsonSimple js = new JsonSimple(oldf);
-	        	jArr = js.getJsonArray();
-	        } else {
-	        	log.debug("Need to create a new version index file: " + jsonPath);
-	        	jArr = new JSONArray();
-	        }
+    
+    private void createVersionIndex(DigitalObject in) {
+    	JSONArray jArr = null;
+    	try{
+    		log.debug("Need to update a version index file: " + in.getId());
+    		Payload payload = in.getPayload("Version_Index.json");
+    		JsonSimple js = new JsonSimple(payload.open());
+        	jArr = js.getJsonArray();
+    	} catch(Exception e) {
+    		log.debug("Need to create a new version index file: " + in.getId());
+        	jArr = new JSONArray();
+    	}
+    	
 	    	JsonObject newVer = new JsonObject();
 	    	newVer.put("timestamp", getTimestamp() );
 	    	newVer.put("file_name", payloadName() );
 	    	try {
 		    	jArr.add(newVer);
-		        try {
-			        FileWriter fw = new FileWriter(jsonPath);
-		    		fw.write(jArr.toJSONString());
-		    		fw.flush();
-		    		fw.close();
-		        } catch (IOException e) {
-		        	log.error("Failed to save versioning property file.", e);
-		        }
+		    	StorageUtils.createOrUpdatePayload(in, "Version_Index.json",  new ByteArrayInputStream(jArr.toJSONString().getBytes(StandardCharsets.UTF_8)));
 	    	} catch (Exception eStrange) {
 	    		log.error("Failed to add a new version.", eStrange);
 	    	}
-		} catch (Exception eOther) {
-			log.error("Failed to create/edit versioning property file.", eOther);
-		}
+		
     }
 }

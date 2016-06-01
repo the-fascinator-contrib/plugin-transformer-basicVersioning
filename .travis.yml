@@ -1,0 +1,19 @@
+sudo: required
+language: java
+services:
+- docker
+before_install:
+- mkdir /tmp/build
+- docker pull qcifengineering/redbox-builder
+- docker run -v /tmp/build:/build -e "CLONEPATH=https://github.com/the-fascinator-contrib/plugin-transformer-basicVersioning.git"
+  qcifengineering/redbox-builder
+install: true
+script: true
+after_success:
+- docker run -v /tmp/build:/build -e "SONATYPE_USERNAME=$SONATYPE_USERNAME" -e "SONATYPE_PASSWORD=$SONATYPE_PASSWORD"
+  qcifengineering/redbox-builder /bin/bash -c "cd build/src;mvn --settings /m2_repo/travis-settings.xml
+  -Dmaven.repo.local=/m2_repo -DskipTests=true deploy"
+env:
+  global:
+  - secure: ZKqkOfWlh2ChjgH94xthmBR2hXbM2fhyFKkjg6r2rb8TTBd93CspiygvjoJPHZwRgiYHMuTF3yPSG2nmz98lvIkvBOC43JzvPXq9NheWAGP4oyzu9iBIKVBtd9+VS5U+nEUJCRBAqgTyEjvhUACX2+9ccJ/LCRXSancEiUpvKoU6v5hUo0mdrMVjc3oh9lmwqRoFSL3Vz1b8fKfPgE5PM/IT8xolDws+QGV5o3reTezHdGY6SzWR2KKkHyPF7zNa1cXFeLakSuopnAVpiviuJqiD3KD12dZKo+UKhBqNFHK7EWLa3wyXyCo34IuBXaRYAtAZRP4pU+27Au6uziaP2LWbDwhvFcpH730v02oBTzxo/dYFCLCCkntreSKpjVynPiM4r66flsotALppVQSHiXHOfC7MR6HDKd4Dstx4UzEuUtVOEVUQQDJjpBz+LJveHPp2Gx2wDzdsL01xW55iJSMRGNgqGAJX3zBvDW5xF3aCtMhnp7UvlUCtovoGbv7jcS3jPeRSMHG/WQIyxszMxbpBvPle9gdK+qmvo8ZXCbxxidetW9D0Q5e24FYORVuxxBu6KEToYVMQzgyfnLuJLUQRPYab2lYhA8/z1tXq67csUnUw9Hjl0idrWtlYhxJjdpbPnEMGtaxwHeIrStD+wKwlZvsF73k+Y6V7U04jKIE=
+  - secure: qaK6T++rl84PkhXAmJh+rOGMvldqar5XueLKIm6N8tWVF729Aeys0WsDq/Y+6oJ59YSMbNRbR5GutEgVtNlN2oCuJ9ujmqyYH154zgfWom5ABTVfyBbvOGs5kM9+CZkLG/hMglDIu0jDss0OdtURdDUd2KgfBtaopcqJvRP322vBzqCn/q7W2+ovKDIrvFBTD3pjKKxMgNSfYaA6X/vaJwcr+9eX7UU0wbRMrBUyrNSQzV72bM95nUos+IKwFEqzfPNukexp/5+IDRTfm7V1VqNVWDTzk8aYnVMxoVUIGD04B7zoh9xzxKwfSfLhidkV3ooQkUOJ6tFWaaSE6gzC9I2Cdn8Zzjd9eApAFKH0TQBYzC3dj0RDoYSV+vyI7XfseJ8mdnjlwtpDTgy1BN42n2Wc7cvh4PUOpUN+FRVhzOKGIRF0dzDpcAQhbRHA0/adgr1JV6FMtgsfLM74Hek7fbmFzR+J+Po034MrJ4uF6hDTtNasgv+9MafEZQtOfee1Tx+YNaKIGrHXq6wHojHyWvOOi0PQEZw9ZS/FMghtPuhQBkhcvrbQ/tx1kiKBWo3DPNV5/z5I5TQDqtWb7Tdr60EtBUZKdFa9laxBH7ulh0Zu/7hKN0LF+jd4os+vHG0z6V7VR+/7ldmFVDO2u6w0kNLqD37oAZ5ggAh4fyLIvcI=
